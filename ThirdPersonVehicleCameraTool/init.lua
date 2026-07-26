@@ -9,7 +9,7 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: init.lua
-Version: 2026-01-25, 17:38 UTC+01:00 (MEZ)
+Version: 2026-07-26, 15:27 UTC+01:00 (MEZ)
 
 Copyright (c) 2026, Si13n7 Developments(tm)
 All rights reserved.
@@ -4449,9 +4449,11 @@ local function saveEditorPreset(key, flux, finale, tasks, status)
 	if tasks.Rename then
 		tasks.Rename = false
 		local path = getPresetFilePath(finale.Name, status)
-		local ok, err = isStringValid(path) and os.remove(path) or false, nil
-		if not ok then
-			logF(DevLevels.FULL, LogLevels.ERROR, 0xebb8, Text.LOG_PSET_DEL_FAIL, finale.Name, flux.Name, err)
+		if fileExists(path) then
+			local ok, err = isStringValid(path) and os.remove(path) or false, nil
+			if not ok then
+				logF(DevLevels.FULL, LogLevels.ERROR, 0xebb8, Text.LOG_PSET_DEL_FAIL, finale.Name, flux.Name, err)
+			end
 		end
 
 		presets.collection[finale.Key] = nil
@@ -4738,16 +4740,44 @@ local function addTooltip(scale, ...)
 	end
 end
 
----Displays a modal popup with a text prompt and two buttons: Yes and No.
----Returns true if the Yes button is clicked, false if No is clicked, and nil if the popup was not active.
+---Displays a modal popup with a text prompt and a dynamic list of buttons.
+---
+---Defaults to two buttons (Yes / No). Extra arguments are passed through `...` and are
+---position-indexed by type — strings first (labels), then numbers (colors):
+--- * Strings override / append labels (index 1 = Yes, 2 = No, 3+ = additional buttons).
+---   An empty string `""` skips that label position (keeps the default).
+--- * Numbers override colors at the matching button position.
+---   A negative number skips that color position.
+---
+---Examples:
+--- * `addPopupWithButtons(id, text, scale)` → Yes / No.
+--- * `addPopupWithButtons(id, text, scale, Colors.GARNET)` → Yes (red) / No.
+--- * `addPopupWithButtons(id, text, scale, "", "", -1, Colors.RED)` → Yes / No (red).
+--- * `addPopupWithButtons(id, text, scale, "", "Cancel")` → Yes / Cancel.
+--- * `addPopupWithButtons(id, text, scale, "", Text.GUI_NO_P, Text.GUI_Cancel, Colors.CARAMEL)`
+---   → Yes (caramel) / No / Cancel.
 ---@param id string # The unique popup ID.
 ---@param text string # The message to display in the popup.
 ---@param scale number # UI scale factor based on current DPI and font size.
----@param yesBtnColor? number # Optional color index for the Yes button (ImGuiCol style constant).
----@param noBtnColor? number # Optional color index for the No button (ImGuiCol style constant).
----@return boolean? # True if Yes clicked, false if No clicked, nil if popup not active.
-local function addPopupYesNo(id, text, scale, yesBtnColor, noBtnColor)
+---@param ... string|number # Interleaved label overrides (strings) and color overrides (numbers).
+---@return integer? # 1-based index of the pressed button, or nil if popup not active / no button pressed.
+local function addPopupWithButtons(id, text, scale, ...)
 	if not areStringValid(id, text) or not isNumber(scale) or not ImGui.BeginPopup(id) then return nil end
+
+	local labels = { Text.GUI_YES, Text.GUI_NO }
+	local colors = {}
+
+	local labelIdx, colorIdx = 0, 0
+	for i = 1, select("#", ...) do
+		local v = select(i, ...)
+		if type(v) == "string" then
+			labelIdx = labelIdx + 1
+			if v ~= "" then labels[labelIdx] = v end
+		elseif type(v) == "number" then
+			colorIdx = colorIdx + 1
+			if v >= 0 then colors[colorIdx] = v end
+		end
+	end
 
 	local result = nil
 
@@ -4758,23 +4788,22 @@ local function addPopupYesNo(id, text, scale, yesBtnColor, noBtnColor)
 
 	local width, height = ceil(80 * scale), floor(30 * scale)
 
-	---@cast yesBtnColor number
-	local pushed = pushColors(ImGuiCol.Button, yesBtnColor) + pushColors(ImGuiCol.Text, Colors.WHITE)
-	if ImGui.Button(Text.GUI_YES, width, height) then
-		result = true
-		ImGui.CloseCurrentPopup()
-	end
-	popColors(pushed)
+	for i, label in ipairs(labels) do
+		if i > 1 then ImGui.SameLine() end
 
-	ImGui.SameLine()
+		local color = colors[i]
+		local pushed = 0
+		if color then
+			pushed = pushColors(ImGuiCol.Button, color) + pushColors(ImGuiCol.Text, Colors.WHITE)
+		end
 
-	---@cast noBtnColor number
-	pushed = pushColors(ImGuiCol.Button, noBtnColor)
-	if ImGui.Button(Text.GUI_NO, width, height) then
-		result = false
-		ImGui.CloseCurrentPopup()
+		if ImGui.Button(label, width, height) then
+			result = i
+			ImGui.CloseCurrentPopup()
+		end
+
+		if pushed > 0 then popColors(pushed) end
 	end
-	popColors(pushed)
 
 	ImGui.EndPopup()
 
@@ -5420,7 +5449,7 @@ local function openFileExplorerWindow(scale, isOpening, x, y, width, height, max
 
 			local folder = dirs[dirNum]
 			local path = combine(folder, fileName)
-			if addPopupYesNo(fileName, format(Text.GUI_PSET_EXPL_DEL_POP, path), scale, Colors.GARNET) then
+			if addPopupWithButtons(fileName, format(Text.GUI_PSET_EXPL_DEL_POP, path), scale, Colors.GARNET) == 1 then
 				if not folder then goto continue end
 
 				local ok, err = os.remove(path)
@@ -6834,11 +6863,32 @@ registerForEvent("onDraw", function()
 	addTooltip(scale, format(tasks.Restore and Text.GUI_EDIT_REST_TIP or Text.GUI_EDIT_SAVE_TIP, key))
 
 	if editor.isOverwriteConfirmed then
-		local path = getPresetFilePath(key, status)
-		local confirmed = addPopupYesNo(key, format(Text.GUI_EDIT_OWR_POP, path), scale, Colors.CARAMEL)
-		if confirmed ~= nil then
+		local curPath = getPresetFilePath(finale.Key, status)
+		local newPath = getPresetFilePath(key, status)
+		local newExists = fileExists(newPath)
+		local isRename = tasks.Rename and fileExists(curPath)
+		local message
+		if isRename then
+			message = format(newExists and Text.GUI_EDIT_MVO_POP or Text.GUI_EDIT_MV_POP, curPath, newPath)
+		else
+			message = format(newExists and Text.GUI_EDIT_OWR_POP or Text.GUI_EDIT_CPY_POP, newPath)
+		end
+		local pressed
+		if isRename then
+			pressed = addPopupWithButtons(key, message, scale, Text.GUI_MOVE, Text.GUI_COPY, Text.GUI_Cancel, Colors.CARAMEL, Colors.OLIVE)
+		else
+			pressed = addPopupWithButtons(key, message, scale, Colors.CARAMEL)
+		end
+		if pressed ~= nil then
 			editor.isOverwriteConfirmed = false
-			saveConfirmed = confirmed
+			if pressed == 1 then
+				saveConfirmed = true
+			elseif pressed == 2 and isRename then
+				tasks.Rename = false
+				saveConfirmed = true
+			else
+				saveConfirmed = false
+			end
 		end
 	end
 	if saveConfirmed then

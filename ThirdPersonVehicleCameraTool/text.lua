@@ -9,9 +9,9 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: text.lua
-Version: 2026-01-25, 17:38 UTC+01:00 (MEZ)
+Version: 2026-07-26, 15:20 UTC+01:00 (MEZ)
 
-Copyright (c) 2025, Si13n7 Developments(tm)
+Copyright (c) 2026, Si13n7 Developments(tm)
 All rights reserved.
 ______________________________________________
 --]]
@@ -21,10 +21,13 @@ return {
 	--GUI: 🧩 General
 	GUI_YES = "\u{f0026} Yes",
 	GUI_NO = "\u{f073a} No",
+	GUI_Cancel = "\u{f073a} Cancel",
 	GUI_ON = "On",
 	GUI_OFF = "Off",
 	GUI_LEFT = "Left",
 	GUI_RIGHT = "Right",
+	GUI_MOVE = "\u{f0ab9} Move",
+	GUI_COPY = "\u{f018f} Copy",
 	GUI_NONE = "None",
 	GUI_UNKNOWN = "Unknown",
 
@@ -167,7 +170,10 @@ return {
 	GUI_EDIT_SAVE = "\u{f0193} Save ",
 	GUI_EDIT_SAVE_TIP = "Applies the configured values and saves them permanently to \"presets/%s.lua\".\n\nChanges will only take effect after exiting and re-entering the vehicle.",
 	GUI_EDIT_REST_TIP = "Removes the \"presets/%s.lua\" to revert to the default preset.\n\nYou must exit and re-enter the vehicle for the changes to take effect.",
-	GUI_EDIT_OWR_POP = "Replace existing file \"%s\"?",
+	GUI_EDIT_OWR_POP = "The destination file \"%s\" already exists.\nDo you want to overwrite it?",
+	GUI_EDIT_CPY_POP = "Save a copy of this preset to \"%s\"?",
+	GUI_EDIT_MV_POP = "Move \"%s\" to \"%s\"?",
+	GUI_EDIT_MVO_POP = "Move \"%s\" to \"%s\"?\n\nThe destination file already exists and will be overwritten.",
 
 	--NUI: 📚 Native Settings UI
 	NUI_CAT_CSET = "Core Settings",
