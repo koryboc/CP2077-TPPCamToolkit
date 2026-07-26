@@ -1,0 +1,1 @@
+return{ID="4w_Columbus",Close={y=0.15,d=-0.3},Medium={y=0.15,d=0.9},Far={y=0.15,d=5}}
