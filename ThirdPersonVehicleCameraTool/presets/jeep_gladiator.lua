@@ -1,0 +1,1 @@
+return{ID="4w_Thorton_Colby_Pickup",Close={y=-0.24,z=1.35,d=-0.6},Medium={y=-0.24,z=1.85,d=0.5},Far={y=-0.24,z=2.25,d=3.4}}
