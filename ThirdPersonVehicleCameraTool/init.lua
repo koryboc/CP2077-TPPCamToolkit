@@ -9,7 +9,7 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: init.lua
-Version: 2026-07-26, 16:04 UTC+01:00 (MEZ)
+Version: 2026-07-26, 20:40 UTC+01:00 (MEZ)
 
 Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
@@ -134,6 +134,7 @@ Development Environment:
 ---@field IsDefault boolean? # Determines whether this camera preset is a default one.
 ---@field IsJoined boolean? # Determines whether this camera preset was newly generated as a default.
 ---@field IsVanilla boolean? # Determines whether this camera preset comes from a vanilla vehicle.
+---@field IsLegacy boolean? # Determines whether this camera preset was loaded from legacy folder
 
 ---Represents usage statistics for a camera preset.
 ---@class IPresetUsage
@@ -307,6 +308,9 @@ local PresetFolders = {
 
 	---Folder containing presets for modded/custom vehicles.
 	CUSTOM = "presets",
+
+	---WIP
+	CUSTOM_LEGACY = "presets/legacy",
 
 	---Folder containing presets for vanilla vehicles.
 	VANILLA = "presets-vanilla"
@@ -3668,6 +3672,8 @@ local function getPresetFilePath(name, status)
 		path = PresetFolders.DEFAULTS
 	elseif status == 0 or status == 1 then
 		path = PresetFolders.VANILLA
+	elseif get(presets.collection, {}, name, "IsLegacy") ~= nil then
+		path = PresetFolders.CUSTOM_LEGACY
 	else
 		path = PresetFolders.CUSTOM
 	end
@@ -3715,6 +3721,7 @@ local function savePreset(name, preset, allowOverwrite, forceDefault)
 	local path = combine(
 		forceDefault and PresetFolders.DEFAULTS or
 		isVanilla and PresetFolders.VANILLA or
+		get(presets.collection, {}, name, "IsLegacy") ~= nil and PresetFolders.CUSTOM_LEGACY or
 		PresetFolders.CUSTOM, ensureLuaExt(name))
 	if not isStringValid(path) then return false end
 
@@ -3852,6 +3859,16 @@ local function loadPresetFile(file, folder, count, vehicleNames)
 		if not isValid then
 			logIf(DevLevels.ALERT, LogLevels.INFO, 0x0305, Text.LOG_PSET_IGNORED, key, folder, file)
 			return count
+		end
+
+		--Add support for legacy preset versions.
+		--Additional versions may be added in the future.
+		if key == "yv_350z" and vehicleNames["yv_350z_black"] then
+			local legacyFile = combine("legacy", file)
+			if presetFileExists(legacyFile) then
+				file = legacyFile
+				logF(DevLevels.BASIC, LogLevels.INFO, 0x0305, Text.LOG_PSET_LOAD_VER, key, folder, file)
+			end
 		end
 	end
 
