@@ -9,9 +9,9 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: init.lua
-Version: 2026-07-26, 15:27 UTC+01:00 (MEZ)
+Version: 2026-07-26, 16:04 UTC+01:00 (MEZ)
 
-Copyright (c) 2026, Si13n7 Developments(tm)
+Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
 ______________________________________________
 
@@ -5273,22 +5273,46 @@ local function openFileExplorerWindow(scale, isOpening, x, y, width, height, max
 		PresetFolders.VANILLA,
 		PresetFolders.CUSTOM
 	}
-	local files = cache.files or {}
+	local files = cache.files
+	local isScanning = false
 	if not isTableValid(files) then
-		for i, location in ipairs(dirs) do
-			local entries = dir(location)
-			if entries then
-				for _, entry in ipairs(entries) do
-					local name = entry.name
-					if name and hasLuaExt(name) then
-						files[name] = i
-					end
+		isScanning = true
+		local scan = explorer.scan
+		if not scan then
+			scan = { files = {}, dirIdx = 1, entryIdx = 1, entries = nil }
+			explorer.scan = scan
+		end
+		local budget = 40
+		while budget > 0 and scan.dirIdx <= #dirs do
+			if not scan.entries then
+				scan.entries = dir(dirs[scan.dirIdx]) or {}
+				scan.entryIdx = 1
+				break
+			end
+			while budget > 0 and scan.entryIdx <= #scan.entries do
+				local entry = scan.entries[scan.entryIdx]
+				scan.entryIdx = scan.entryIdx + 1
+				budget = budget - 1
+				local name = entry and entry.name
+				if name and hasLuaExt(name) then
+					scan.files[name] = scan.dirIdx
 				end
 			end
+			if scan.entryIdx > #scan.entries then
+				scan.dirIdx = scan.dirIdx + 1
+				scan.entries = nil
+			end
 		end
-		cache.dirs = dirs
-		cache.files = files
-		setCache(0x970b, cache, true)
+		if scan.dirIdx > #dirs then
+			cache.dirs = dirs
+			cache.files = scan.files
+			setCache(0x970b, cache, true)
+			files = scan.files
+			explorer.scan = nil
+			isScanning = false
+		else
+			files = {}
+		end
 	end
 
 	height = math.max(height, 400 * scale)
@@ -5367,60 +5391,78 @@ local function openFileExplorerWindow(scale, isOpening, x, y, width, height, max
 		end
 	end
 
+	local visible = {}
+	for fileName, dirNum in opairs(files) do
+		if #search > 0 and not fileName:lower():find(search, 1, true) then
+			goto continue
+		end
+
+		local key = trimLuaExt(fileName)
+		local pset = presets.collection[key]
+		if (pset and command == ExplorerCommands.MODDED and pset.IsVanilla) or
+			(command == ExplorerCommands.VANILLA and dirNum > 1) then
+			goto continue
+		end
+
+		local color
+		if not pset then
+			if isStringValid(command) and command ~= ExplorerCommands.UNAVAILABLE and command ~= ExplorerCommands.VANILLA then
+				goto continue
+			end
+			color = Colors.GARNET
+		end
+		if command == ExplorerCommands.UNAVAILABLE and not color then
+			goto continue
+		end
+
+		local usage = presets.usage[key]
+		if isTableValid(usage) then
+			if command == ExplorerCommands.INACTIVE then goto continue end
+			color = Colors.FIR
+		end
+		if command == ExplorerCommands.ACTIVE and color ~= Colors.FIR then goto continue end
+
+		visible[#visible + 1] = { fileName = fileName, dirNum = dirNum, key = key, usage = usage, color = color }
+		::continue::
+	end
+	explorer.totalVisible = #visible
+
 	local columnWidth
 	if ImGui.BeginTable("PresetFiles", 2, bor(ImGuiTableFlags.Borders, ImGuiTableFlags.RowBg)) then
 		ImGui.TableSetupColumn(" \u{f09a8}" .. explorer.totalVisible, ImGuiTableColumnFlags.WidthStretch)
 		ImGui.TableSetupColumn(" \u{f05e9}", ImGuiTableColumnFlags.WidthFixed)
 		ImGui.TableHeadersRow()
 
-		explorer.totalVisible = 0
-		for fileName, dirNum in opairs(files) do
-			if #search > 0 and not fileName:lower():find(search, 1, true) then
-				goto continue
-			end
+		local drawRow = function(item)
+			local fileName, dirNum, key, usage, color = item.fileName, item.dirNum, item.key, item.usage, item.color
 
-			local key = trimLuaExt(fileName)
-			local pset = presets.collection[key]
-			if (pset and command == ExplorerCommands.MODDED and pset.IsVanilla) or
-				(command == ExplorerCommands.VANILLA and dirNum > 1) then
-				goto continue
-			end
-
-			local color
-			if not pset then
-				if isStringValid(command) and command ~= ExplorerCommands.UNAVAILABLE and command ~= ExplorerCommands.VANILLA then
-					goto continue
-				end
-				color = Colors.GARNET
-			end
-			if command == ExplorerCommands.UNAVAILABLE and not color then
-				goto continue
-			end
-
-			local usage = presets.usage[key]
-			if isTableValid(usage) then
-				if command == ExplorerCommands.INACTIVE then goto continue end
-				color = Colors.FIR
-			end
-			if command == ExplorerCommands.ACTIVE and color ~= Colors.FIR then goto continue end
-
-			explorer.totalVisible = explorer.totalVisible + 1
 			ImGui.TableNextRow()
 			ImGui.TableNextColumn()
 
 			alignNext(buttonHeight)
 			color = color and pushColors(ImGuiCol.Text, color) or 0
 			columnWidth = columnWidth or ((ImGui.GetColumnWidth(0) - 4) * scale)
-			local textWidth = ImGui.CalcTextSize(key) * scale
-			local nameTooLong = columnWidth < textWidth
-			if nameTooLong then
-				local short = key
-				local dots = "..."
-				local cutoff = columnWidth - ImGui.CalcTextSize(dots) * scale
-				while #short > 0 and ImGui.CalcTextSize(short) * scale > cutoff do
-					short = short:sub(1, -2)
+
+			local short = item.short
+			if short == nil or item.shortWidth ~= columnWidth then
+				local textWidth = ImGui.CalcTextSize(key) * scale
+				if columnWidth < textWidth then
+					local dots = "..."
+					local cutoff = columnWidth - ImGui.CalcTextSize(dots) * scale
+					short = key
+					while #short > 0 and ImGui.CalcTextSize(short) * scale > cutoff do
+						short = short:sub(1, -2)
+					end
+					short = short .. dots
+				else
+					short = false
 				end
-				ImGui.Text(short .. dots)
+				item.short = short
+				item.shortWidth = columnWidth
+			end
+
+			if short then
+				ImGui.Text(short)
 				addTooltip(scale, format(Text.GUI_PSET_EXPL_NAME_TIP, key))
 			else
 				ImGui.Text(key)
@@ -5428,7 +5470,7 @@ local function openFileExplorerWindow(scale, isOpening, x, y, width, height, max
 			popColors(color)
 
 			if usage then
-				if nameTooLong then
+				if short then
 					addTooltip(scale, "\n")
 				end
 				local fmt = "%Y-%m-%d %H:%M:%S %p"
@@ -5450,20 +5492,18 @@ local function openFileExplorerWindow(scale, isOpening, x, y, width, height, max
 			local folder = dirs[dirNum]
 			local path = combine(folder, fileName)
 			if addPopupWithButtons(fileName, format(Text.GUI_PSET_EXPL_DEL_POP, path), scale, Colors.GARNET) == 1 then
-				if not folder then goto continue end
+				if not folder then return end
 
 				local ok, err = os.remove(path)
 				if ok then
 					for n in pairs(editor.bundles) do
 						local parts = split(n, "*")
-						if #parts < 2 then goto continue end
-
-						local vName, aName = parts[1], parts[2]
-						if startsWith(vName, key) or startsWith(aName, key) then
-							editor.bundles[n] = nil
+						if #parts >= 2 then
+							local vName, aName = parts[1], parts[2]
+							if startsWith(vName, key) or startsWith(aName, key) then
+								editor.bundles[n] = nil
+							end
 						end
-
-						::continue::
 					end
 
 					setPresetEntry(key)
@@ -5480,8 +5520,14 @@ local function openFileExplorerWindow(scale, isOpening, x, y, width, height, max
 					logF(DevLevels.FULL, LogLevels.WARN, 0x970b, Text.LOG_PSET_DEL_FAIL, fileName, err)
 				end
 			end
+		end
 
-			::continue::
+		local clipper = ImGuiListClipper.new()
+		clipper:Begin(#visible)
+		while clipper:Step() do
+			for i = clipper.DisplayStart + 1, clipper.DisplayEnd do
+				drawRow(visible[i])
+			end
 		end
 
 		ImGui.EndTable()
@@ -5493,9 +5539,15 @@ local function openFileExplorerWindow(scale, isOpening, x, y, width, height, max
 	end
 
 	local isEmpty = nilOrEmpty(files)
-	if isEmpty or explorer.totalVisible < 1 then
-		local text = isEmpty and Text.GUI_PSET_EXPL_EMPTY or Text.GUI_PSET_EXPL_UNMATCH
-		local color = isEmpty and Colors.GARNET or Colors.MULBERRY
+	if isScanning or isEmpty or explorer.totalVisible < 1 then
+		local text, color
+		if isScanning then
+			text, color = Text.GUI_PSET_EXPL_LOADING, Colors.CARAMEL
+		elseif isEmpty then
+			text, color = Text.GUI_PSET_EXPL_EMPTY, Colors.GARNET
+		else
+			text, color = Text.GUI_PSET_EXPL_UNMATCH, Colors.MULBERRY
+		end
 
 		local textSize = ImGui.CalcTextSize(text) * scale
 		local conWidth = ImGui.GetContentRegionAvail()

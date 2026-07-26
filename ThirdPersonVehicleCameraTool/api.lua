@@ -13,9 +13,9 @@ are already provided by Lua or CET and exist
 only for documentation and coding convenience.
 
 Filename: api.lua
-Version: 2025-12-13, 15:22 UTC+01:00 (MEZ)
+Version: 2026-07-26, 16:04 UTC+01:00 (MEZ)
 
-Copyright (c) 2025, Si13n7 Developments(tm)
+Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
 ______________________________________________
 --]]
@@ -164,6 +164,16 @@ ImGui.ToastType = ImGui.ToastType
 ---@field message string # The main text content of the Toast.
 ---@field new fun(type: ImGui.ToastType, message: string): ImGui.Toast # Creates a new Toast with the specified type and message.
 ImGui.Toast = ImGui.Toast
+
+---Helper for efficiently rendering large lists by skipping items outside the visible scroll area.
+---Only the rows within `DisplayStart` and `DisplayEnd` are rendered per step, dramatically reducing per-frame cost for long lists.
+---@class ImGuiListClipper
+---@field DisplayStart integer # First visible item index for the current step (0-based, inclusive).
+---@field DisplayEnd integer # One past the last visible item index for the current step (0-based, exclusive).
+---@field new fun(): ImGuiListClipper # Creates a new list clipper instance.
+---@field Begin fun(self: ImGuiListClipper, itemCount: integer, itemHeight?: number) # Starts clipping for a list of `itemCount` items. `itemHeight` is measured from the first visible row when omitted.
+---@field Step fun(self: ImGuiListClipper): boolean # Advances to the next range of visible items. Returns true while there are items left to render.
+ImGuiListClipper = ImGuiListClipper
 
 ---Bitwise operations (Lua 5.1 compatibility).
 ---@class bit32

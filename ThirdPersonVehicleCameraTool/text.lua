@@ -9,9 +9,9 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: text.lua
-Version: 2026-07-26, 15:20 UTC+01:00 (MEZ)
+Version: 2026-07-26, 16:04 UTC+01:00 (MEZ)
 
-Copyright (c) 2026, Si13n7 Developments(tm)
+Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
 ______________________________________________
 --]]
@@ -130,6 +130,7 @@ return {
 	GUI_PSET_EXPL_USAGE_TIP = "\u{f0520} Usage History| |First Used:|%s|Last Used:|%s|Total Uses:|%d",
 	GUI_PSET_EXPL_EMPTY = "No presets have been created yet.",
 	GUI_PSET_EXPL_UNMATCH = "No presets match your search.",
+	GUI_PSET_EXPL_LOADING = "Loading presets...",
 	GUI_PSET_EXPL_DEL_TIP = "Delete this preset",
 	GUI_PSET_EXPL_DEL_POP = "Delete file \"%s\"?",
 
