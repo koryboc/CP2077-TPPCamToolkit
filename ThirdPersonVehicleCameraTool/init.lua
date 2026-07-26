@@ -9,7 +9,7 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: init.lua
-Version: 2026-07-26, 20:40 UTC+01:00 (MEZ)
+Version: 2026-07-26, 20:43 UTC+01:00 (MEZ)
 
 Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
@@ -134,7 +134,7 @@ Development Environment:
 ---@field IsDefault boolean? # Determines whether this camera preset is a default one.
 ---@field IsJoined boolean? # Determines whether this camera preset was newly generated as a default.
 ---@field IsVanilla boolean? # Determines whether this camera preset comes from a vanilla vehicle.
----@field IsLegacy boolean? # Determines whether this camera preset was loaded from legacy folder
+---@field IsLegacy boolean? # Determines whether this camera preset is a legacy preset.
 
 ---Represents usage statistics for a camera preset.
 ---@class IPresetUsage
