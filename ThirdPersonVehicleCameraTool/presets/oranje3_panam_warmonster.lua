@@ -1,0 +1,1 @@
+return{ID="4w_Truck_Preset",Close={y=0,z=2.35,d=1},Medium={y=0,z=2.75,d=2},Far={y=0,z=3.15,d=6}}
