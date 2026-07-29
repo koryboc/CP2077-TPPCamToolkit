@@ -9,7 +9,7 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: init.lua
-Version: 2026-07-26, 20:43 UTC+01:00 (MEZ)
+Version: 2026-07-29, 20:49 UTC+01:00 (MEZ)
 
 Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
@@ -309,7 +309,7 @@ local PresetFolders = {
 	---Folder containing presets for modded/custom vehicles.
 	CUSTOM = "presets",
 
-	---WIP
+	---Folder containing presets for legacy modded/custom vehicles.
 	CUSTOM_LEGACY = "presets/legacy",
 
 	---Folder containing presets for vanilla vehicles.
@@ -3672,7 +3672,7 @@ local function getPresetFilePath(name, status)
 		path = PresetFolders.DEFAULTS
 	elseif status == 0 or status == 1 then
 		path = PresetFolders.VANILLA
-	elseif get(presets.collection, {}, name, "IsLegacy") ~= nil then
+	elseif get(presets.collection, {}, name).IsLegacy then
 		path = PresetFolders.CUSTOM_LEGACY
 	else
 		path = PresetFolders.CUSTOM
@@ -3718,10 +3718,11 @@ local function savePreset(name, preset, allowOverwrite, forceDefault)
 
 	local status = getVehicleStatus()
 	local isVanilla = status == 0 or status == 1
+	local isLegacy = get(presets.collection, {}, name).IsLegacy
 	local path = combine(
 		forceDefault and PresetFolders.DEFAULTS or
 		isVanilla and PresetFolders.VANILLA or
-		get(presets.collection, {}, name, "IsLegacy") ~= nil and PresetFolders.CUSTOM_LEGACY or
+		isLegacy and PresetFolders.CUSTOM_LEGACY or
 		PresetFolders.CUSTOM, ensureLuaExt(name))
 	if not isStringValid(path) then return false end
 
@@ -3782,6 +3783,8 @@ local function savePreset(name, preset, allowOverwrite, forceDefault)
 		insert(parts, "IsDefault=true")
 	elseif isVanilla then
 		insert(parts, "IsVanilla=true")
+	elseif isLegacy then
+		insert(parts, "IsLegacy=true")
 	end
 
 	local last = parts[#parts]
@@ -4422,14 +4425,19 @@ local function applyEditorPreset(key, flux, pivot, tasks)
 	tasks.Apply = false
 
 	local isVanilla = false
+	local isLegacy = false
 	if presets.collection[pivot.Key] then
 		isVanilla = presets.collection[pivot.Key].IsVanilla
+		isLegacy = presets.collection[pivot.Key].IsLegacy
 	end
 
 	presets.collection[pivot.Key] = nil
 	if not tasks.Restore then
 		if isVanilla then
 			flux.Preset.IsVanilla = true
+		end
+		if isLegacy then
+			flux.Preset.IsLegacy = true
 		end
 		presets.collection[key] = flux.Preset
 	end
