@@ -13,7 +13,7 @@ are already provided by Lua or CET and exist
 only for documentation and coding convenience.
 
 Filename: api.lua
-Version: 2026-07-26, 16:04 UTC+01:00 (MEZ)
+Version: 2026-07-29, 21:23 UTC+01:00 (MEZ)
 
 Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
@@ -182,6 +182,12 @@ ImGuiListClipper = ImGuiListClipper
 ---@field rshift fun(x: integer, disp: integer): integer # Shifts `x` right by `disp` bits, filling in with zeros from the left.
 ---@field lshift fun(x: integer, disp: integer): integer # Shifts `x` left by `disp` bits, discarding bits shifted out on the left.
 bit32 = bit32
+
+---JSON encoder/decoder module.
+---@class json
+---@field decode fun(text: string): any # Decodes a JSON string into a Lua table/scalar.
+---@field encode fun(value: any): string # Encodes a Lua value to a JSON string.
+json = json
 
 ---Provides access to game data stored in the database, including camera offsets and various other game settings.
 ---@class TweakDB

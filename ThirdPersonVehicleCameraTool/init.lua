@@ -9,7 +9,7 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: init.lua
-Version: 2026-07-29, 20:49 UTC+01:00 (MEZ)
+Version: 2026-07-29, 21:31 UTC+01:00 (MEZ)
 
 Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
@@ -2230,6 +2230,62 @@ local function asyncOnce(delay, callback)
 		asyncStop(id)
 		callback(id)
 	end)
+end
+
+
+---Asynchronously downloads a file via HTTP GET and writes its body to disk.
+---Fails silently (returns from the callback) if the response status is not 200,
+---if the `Content-Type` header does not match `contentType`, or if the target
+---file cannot be opened for writing.
+---@param fileUrl string # The URL to fetch the file from.
+---@param filePath string # The full or relative path the response body is written to.
+---@param contentType? string # Optional expected `Content-Type`; skips the check if nil.
+---@param onSuccess? fun(data: string) # Optional callback invoked with the response body after a successful write.
+local function asyncDownloadFile(fileUrl, filePath, contentType, onSuccess)
+	---@diagnostic disable: undefined-global
+
+	if not isUserdata(AsyncHttpClient) then return end
+
+	local httpListener = NewProxy({
+		onResponse = {
+			args = {
+				"handle:HttpResponse"
+			},
+			callback = function(response)
+				local status = response:GetStatusCode()
+				if status ~= 200 then
+					logF(DevLevels.ALERT, LogLevels.ERROR, 0, Text.LOG_DL_STAT_FAIL, status)
+					return false
+				end
+
+				local type = response:GetHeader("Content-Type")
+				if contentType ~= nil and type ~= contentType then
+					logF(DevLevels.ALERT, LogLevels.ERROR, 0, Text.LOG_DL_TYPE_MISM, contentType, type)
+					return false
+				end
+
+				local data = response:GetText()
+				if not data then return false end
+
+				local file = io.open(filePath, "w")
+				if not file then return false end
+				file:write(data)
+				file:close()
+				if isFunction(onSuccess) then ---@cast onSuccess function
+					onSuccess(data)
+				end
+
+				return true
+			end
+		}
+	})
+
+	local callback = HttpCallback.Create(httpListener:Target(), httpListener:Function("onResponse"))
+	if callback ~= nil then
+		AsyncHttpClient.Get(callback, fileUrl)
+	end
+
+	---@diagnostic enable undefined-global
 end
 
 --#endregion
@@ -5975,6 +6031,46 @@ registerForEvent("onInit", function()
 		local file = io.open(format("%s.log", name), "w")
 		if file then file:close() end
 	end)
+
+	--Fetch preset files from the upstream repo; download any that are missing locally or whose size differs.
+	asyncDownloadFile(
+		"https://api.github.com/repos/koryboc/CP2077-TPPCamToolkit/contents/ThirdPersonVehicleCameraTool/presets",
+		"update.json",
+		"application/json; charset=utf-8",
+		function(e)
+			local files = json.decode(e)
+			for _, entry in ipairs(files) do
+				local type = entry.type
+				if not type and type ~= "file" then goto continue end
+
+				local file = entry.name
+				if not file or not hasLuaExt(file) then goto continue end
+
+				local path = getPresetFilePath(file, 2)
+				if fileExists(path) then
+					local size = entry.size
+					if not size then goto continue end
+
+					local mismatch = false
+					local handle = io.open(path, "rb")
+					if handle then
+						local length = handle:seek("end")
+						handle:close()
+						mismatch = size ~= length
+					end
+
+					if not mismatch then goto continue end
+				end
+
+				local url = entry.download_url
+				if not url then goto continue end
+				asyncDownloadFile(url, path, "text/plain; charset=utf-8", function(_)
+					logF(DevLevels.ALERT, LogLevels.INFO, 0, format("UPDATED: %s", path))
+				end)
+
+				::continue::
+			end
+		end)
 
 	--Load all saved data from disk; apply preset only if the player is in a vehicle.
 	onInit()

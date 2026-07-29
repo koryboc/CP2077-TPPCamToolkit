@@ -9,7 +9,7 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: text.lua
-Version: 2026-07-26, 20:40 UTC+01:00 (MEZ)
+Version: 2026-07-29, 21:23 UTC+01:00 (MEZ)
 
 Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
@@ -245,6 +245,8 @@ return {
 	LOG_ARG_OUT_OF_RANGE = "At least one argument is out of range.",
 	LOG_CAM_ID_MISS = "Vehicle camera ID is missing.",
 	LOG_CAM_OSET_MISS = "Could not retrieve camera offset: '%s'.",
+	LOG_DL_STAT_FAIL = "Request failed, status code: %d.",
+	LOG_DL_TYPE_MISM = "Request failed, '%s' expected instead of '%s'.",
 	LOG_FORMAT_INVALID = "Format invalid.",
 	LOG_KEY_DUPLICATE = "The key '%s' already exists.",
 	LOG_PSET_APPLY_FAIL = "Could not apply preset: incomplete parameters ('%s').",
