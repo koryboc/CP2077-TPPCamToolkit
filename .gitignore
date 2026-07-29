@@ -1,3 +1,4 @@
-ThirdPersonVehicleCameraTool/*.sqlite3
+ThirdPersonVehicleCameraTool/*.json
 ThirdPersonVehicleCameraTool/*.log
+ThirdPersonVehicleCameraTool/*.sqlite3
 ThirdPersonVehicleCameraTool/addons/lang_text.lua*
