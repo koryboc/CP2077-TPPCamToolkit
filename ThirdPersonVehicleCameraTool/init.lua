@@ -9,7 +9,7 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: init.lua
-Version: 2026-07-29, 21:39 UTC+01:00 (MEZ)
+Version: 2026-08-05, 22:30 UTC+01:00 (MEZ)
 
 Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
@@ -714,7 +714,10 @@ local state = {
 	isCodewareAvailable = false,
 
 	---Determines whether `FovControl` is installed.
-	isFovControlAvailable = false
+	isFovControlAvailable = false,
+
+	---Determines whether `HttpClient` is installed.
+	isHttpClientAvailable = false,
 }
 
 ---Manages recurring asynchronous timers and their status.
@@ -748,6 +751,13 @@ local config = {
 	---Global option data.
 	---@type table<string, IOptionData>
 	options = {
+		---Mod-only option: auto-downloads missing presets from the upstream GitHub repo on init.
+		autoFetchPresets = {
+			DisplayName = Text.GUI_GSET_AUTO_FETCH_PSETS,
+			Tooltip = Text.GUI_GSET_AUTO_FETCH_PSETS_TIP,
+			Default = false
+		},
+
 		---Mod-only option: moves the camera closer to motorcycles; prevents editing motorcycle presets while enabled.
 		closerBikes = {
 			DisplayName = Text.GUI_GSET_CLOSER_BIKES,
@@ -2244,7 +2254,7 @@ end
 local function asyncDownloadFile(fileUrl, filePath, contentType, onSuccess)
 	---@diagnostic disable: undefined-global
 
-	if not isUserdata(AsyncHttpClient) then return end
+	if not state.isHttpClientAvailable then return end
 
 	local httpListener = NewProxy({
 		onResponse = {
@@ -2254,13 +2264,13 @@ local function asyncDownloadFile(fileUrl, filePath, contentType, onSuccess)
 			callback = function(response)
 				local status = response:GetStatusCode()
 				if status ~= 200 then
-					logF(DevLevels.ALERT, LogLevels.ERROR, 0, Text.LOG_DL_STAT_FAIL, status)
+					logF(DevLevels.ALERT, LogLevels.ERROR, 0xbfef, Text.LOG_DL_STAT_FAIL, status)
 					return false
 				end
 
 				local type = response:GetHeader("Content-Type")
 				if contentType ~= nil and type ~= contentType then
-					logF(DevLevels.ALERT, LogLevels.ERROR, 0, Text.LOG_DL_TYPE_MISM, contentType, type)
+					logF(DevLevels.ALERT, LogLevels.ERROR, 0xbfef, Text.LOG_DL_TYPE_MISM, contentType, type)
 					return false
 				end
 
@@ -4004,7 +4014,7 @@ local function loadPresetsFrom(path)
 		if length == 0 then
 			task.IsActive = false
 			logF(DevLevels.BASIC, LogLevels.INFO, 0x98e0, Text.LOG_PSETS_LOAD_CUS, 0, 0, 0)
-			logF(DevLevels.ALERT, LogLevels.INFO, 0x98e0, Text.LOG_PSETS_LOAD_DONE, task.Duration)
+			logF(DevLevels.BASIC, LogLevels.INFO, 0x98e0, Text.LOG_PSETS_LOAD_DONE, task.Duration)
 			if isFunction(task.Finalizer) then
 				task.Finalizer()
 			end
@@ -4103,6 +4113,45 @@ local function loadPresets(refresh, delay)
 	presets.loaderTask.IsActive = true
 	delay = abs(isNumber(delay) and delay or 0)
 	asyncOnce(delay, function()
+		--Fetch preset files from the upstream repo; download any that are missing locally.
+		local option = deep(config.options, "autoFetchPresets")
+		option.IsUnavailable = not state.isHttpClientAvailable
+		if not option.IsUnavailable and option.Value then
+			asyncDownloadFile(
+				"https://api.github.com/repos/koryboc/CP2077-TPPCamToolkit/contents/ThirdPersonVehicleCameraTool/presets",
+				"update.json",
+				"application/json; charset=utf-8",
+				function(e)
+					local data = json.decode(e)
+					if not isTableValid(data) then return end
+
+					local files = dir(PresetFolders.CUSTOM)
+					if not isTableValid(files) then return end
+
+					local lookup = {}
+					for _, entry in ipairs(files) do
+						lookup[entry.name] = true
+					end
+
+					for _, entry in ipairs(data) do
+						if entry.type ~= "file" then goto continue end
+						if lookup[entry.name] then goto continue end
+						if not hasLuaExt(entry.name) then goto continue end
+
+						local url = entry.download_url
+						if not url then goto continue end
+
+						local path = getPresetFilePath(entry.name, 2)
+						asyncDownloadFile(url, path, "text/plain; charset=utf-8", function(_)
+							logF(DevLevels.BASIC, LogLevels.INFO, 0x372a, format(Text.LOG_PSET_UPDATED, path))
+						end)
+
+						::continue::
+					end
+				end)
+		end
+
+		--Load local presets.
 		loadPresetsFrom(PresetFolders.DEFAULTS)
 		loadPresetsFrom(PresetFolders.VANILLA)
 		loadPresetsFrom(PresetFolders.CUSTOM)
@@ -5035,7 +5084,7 @@ local function openGlobalOptionsWindow(scale, x, y, width, height, halfContentWi
 
 	ImGui.SetNextWindowPos(x, y)
 
-	local cache = getCache(0x958a, true) or 270
+	local cache = getCache(0x958a, true) or 300
 
 	height = math.max(height, cache * scale)
 	ImGui.SetNextWindowSize(width, height)
@@ -5075,10 +5124,10 @@ local function openGlobalOptionsWindow(scale, x, y, width, height, halfContentWi
 			if depDef ~= nil then
 				local depVal = get(config.options, nil, depKey, "Value")
 				if depVal ~= nil and depVal == depDef then
-					cache = 270
+					cache = 300
 					goto continue
 				end
-				cache = 380
+				cache = 410
 			end
 		end
 
@@ -6018,6 +6067,10 @@ registerForEvent("onInit", function()
 	---@diagnostic disable-next-line: undefined-global, undefined-field
 	state.isFovControlAvailable = type(FovControl) == "userdata" and type(FovControl.Version) == "function"
 
+	--HttpClient dependence.
+	---@diagnostic disable-next-line: undefined-global, undefined-field
+	state.isHttpClientAvailable = type(AsyncHttpClient) == "userdata"
+
 	--Ensures the log file is fresh when the mod initializes.
 	pcall(function()
 		local name = "ThirdPersonVehicleCameraTool"
@@ -6031,46 +6084,6 @@ registerForEvent("onInit", function()
 		local file = io.open(format("%s.log", name), "w")
 		if file then file:close() end
 	end)
-
-	--Fetch preset files from the upstream repo; download any that are missing locally or whose size differs.
-	asyncDownloadFile(
-		"https://api.github.com/repos/koryboc/CP2077-TPPCamToolkit/contents/ThirdPersonVehicleCameraTool/presets",
-		"update.json",
-		"application/json; charset=utf-8",
-		function(e)
-			local files = json.decode(e)
-			for _, entry in ipairs(files) do
-				local type = entry.type
-				if not type and type ~= "file" then goto continue end
-
-				local file = entry.name
-				if not file or not hasLuaExt(file) then goto continue end
-
-				local path = getPresetFilePath(file, 2)
-				if fileExists(path) then
-					local size = entry.size
-					if not size then goto continue end
-
-					local mismatch = false
-					local handle = io.open(path, "rb")
-					if handle then
-						local length = handle:seek("end")
-						handle:close()
-						mismatch = size ~= length
-					end
-
-					if not mismatch then goto continue end
-				end
-
-				local url = entry.download_url
-				if not url then goto continue end
-				asyncDownloadFile(url, path, "text/plain; charset=utf-8", function(_)
-					logF(DevLevels.ALERT, LogLevels.INFO, 0, format("UPDATED: %s", path))
-				end)
-
-				::continue::
-			end
-		end)
 
 	--Load all saved data from disk; apply preset only if the player is in a vehicle.
 	onInit()

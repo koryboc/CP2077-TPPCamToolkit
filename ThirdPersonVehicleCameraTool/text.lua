@@ -9,7 +9,7 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: text.lua
-Version: 2026-07-29, 21:23 UTC+01:00 (MEZ)
+Version: 2026-08-05, 22:30 UTC+01:00 (MEZ)
 
 Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
@@ -52,6 +52,8 @@ return {
 	GUI_PSETS_RLD_TIP = "Reloads all preset data. Use this to reset unsaved changes, after enabling or disabling vanilla presets, or when you have changed or added preset files outside of the game.\n\nKeep in mind that changes only take effect after exiting and re-entering the vehicle",
 
 	--GUI: ⚒️ Global Settings
+	GUI_GSET_AUTO_FETCH_PSETS = "Auto Fetch Presets",
+	GUI_GSET_AUTO_FETCH_PSETS_TIP = "Automatically keeps presets up to date by downloading missing ones from GitHub.",
 	GUI_GSET_CLOSER_BIKES = "Closer Bikes",
 	GUI_GSET_CLOSER_BIKES_TIP = "Moves the camera closer to motorcycles for a tighter, more immersive view.\n\nOnly works for motorcycles that have a preset.\n\nMotorcycle presets cannot be edited while this option is enabled.",
 	GUI_GSET_CLO_BIKES_OSET_A = "Closer Bikes A-Shift",
