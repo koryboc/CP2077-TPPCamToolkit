@@ -72,7 +72,7 @@ return {
 	GUI_GSET_FOV_TIP = "Default:|%s|Min:|%s|Max:|%s|In Use:|%s",
 	GUI_GSET_FOV_TIP_VAL = "%4d [ raw: %7.3f ]",
 	GUI_GSET_ZOOM = "Zoom",
-	GUI_GSET_ZOOM_DESC = "Controls the camera zoom level, allowing you to get closer to the subject.",
+	GUI_GSET_ZOOM_DESC = "Controls the camera zoom level, allowing you to get closer to the subject.\n\nWARNING: Increasing this value reduces the volume of vehicle engine sounds and radio audio. To avoid this, reduce the FOV instead.",
 	GUI_GSET_ZOOM_TIP = "Default:|%.2f|Min:|%.2f|Max:|%.2f",
 	GUI_GSET_RESET = "\u{f054d} Reset",
 	GUI_GSET_RESET_TIP = "You may need to reload the presets for changes to fully take effect, and some changes only apply after exiting and re-entering the vehicle.",
