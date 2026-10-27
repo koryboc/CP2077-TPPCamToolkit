@@ -9,7 +9,7 @@ Allows you to adjust third-person perspective
 (TPP) camera offsets for any vehicle.
 
 Filename: init.lua
-Version: 2026-08-05, 22:30 UTC+01:00 (MEZ)
+Version: 2026-10-27, 17:30 UTC+01:00 (MEZ)
 
 Copyright (c) 2026, Roy Bock aka koryboc
 All rights reserved.
